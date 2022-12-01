@@ -1,0 +1,94 @@
+name: Brew
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  build:
+    #runs-on: self-hosted
+    runs-on: macos-12
+    permissions:
+      issues: write
+    steps:
+      - name: Cache setup
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            /tmp/longshot
+            target/
+          key: ${{ runner.os }}-cargo
+      - name: Add initial comment
+        uses: peter-evans/create-or-update-comment@v2
+        id: comment
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: ' - [X] Getting ready to brew your ☕️!'
+      - name: Add initial comment
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.comment.outputs.comment-id }}
+          body: ' - [X] Running in emulated mode so the installation might take some extra time (sorry)'
+      - name: Install longshot
+        run: cargo install --root /tmp/longshot -- longshot 
+      - name: Update comment
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.comment.outputs.comment-id }}
+          body: ' - [X] Installed the `longshot` executable'
+      - name: Process the request
+        run: |
+          OUTFILE=body.md
+          CMDLINE=$(
+            jq -r '
+              .issue.body |
+              gsub("^\\s+|\\s+$";"") |
+              select(
+                test("^brew --beverage \\w+( --(coffee|milk|taste|hotwater|temperature) \\w+)*$")
+              )' < $GITHUB_EVENT_PATH
+          )
+          echo Command-line we parsed was: $CMDLINE
+          if [[ "$CMDLINE" == "" ]]; then
+            echo " - [X] Couldn't parse the command line from your comment? 🤔" > $OUTFILE
+            exit 1
+          fi
+          echo -n ' - [X]' Running brew command: \`$CMDLINE\` > $OUTFILE
+          echo ' [(Log here)](https://github.com/'${GITHUB_REPOSITORY}'/actions/runs/'${GITHUB_RUN_ID}')' >> $OUTFILE
+          echo "/tmp/longshot/bin/longshot $CMDLINE --device-name ${{ secrets.DEVICE_NAME }}" > cmdline.txt
+      - name: Update comment
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.comment.outputs.comment-id }}
+          body-file: body.md
+      - name: Brew coffee
+        run: |
+          echo '<details><summary>Log</summary><pre>' > log.md
+          sh -c "`cat cmdline.txt`" | tee -a log.md
+          echo '</pre></details>' >> log.md
+          echo '✅ Success!' >> log.md
+      - name: Update comment on success
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.comment.outputs.comment-id }}
+          body-file: log.md
+      - name: Update comment on failure
+        if: failure()
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.comment.outputs.comment-id }}
+          body: |
+            <br>
+            ❌ Failed! Please check the log for the reason.
+      - name: Close issue
+        if: always()
+        uses: peter-evans/close-issue@v2
+
