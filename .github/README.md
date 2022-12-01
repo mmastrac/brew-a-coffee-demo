@@ -12,7 +12,8 @@ on how I reverse engineered the protocol for the coffeemaker, wrote a CLI, and f
 
 ## Try it out!
 
-This repository will allow anyone to brew a coffee. File a new issue using one of the templates, and feel free to modify the parameters:
+This repository will allow anyone to brew a coffee. File a new issue using one of the templates, and feel free to modify the parameters. Please be patient: because we're waiting
+on Github's runners, it might take a minute for the action to pick up your request (this is much more responsive on my hosted runner!).
 
 https://github.com/mmastrac/brew-a-coffee-demo/issues/new/choose
 
